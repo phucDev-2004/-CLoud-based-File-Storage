@@ -3,7 +3,6 @@ from typing import Annotated
 from pydantic import AfterValidator, StringConstraints
 from ..utils.validators_utils import no_whilespace, check_strong_pass, to_title_case
 
-# 1. Kiểu SĐT Việt Nam
 UserName = Annotated[
     str, 
     StringConstraints(min_length=3, max_length=30),

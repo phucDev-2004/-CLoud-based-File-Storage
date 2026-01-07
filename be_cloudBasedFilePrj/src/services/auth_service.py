@@ -50,7 +50,10 @@ class AuthService():
         return account
 
     def login(self, user_name: str, password: str):
-        account = self.get_by_username(user_name)
+        try:
+            account = self.get_by_username(user_name)
+        except Account.DoesNotExist:
+            raise InvalidCredentials("Thông tin đăng nhập sai")
 
         if not account:
              raise InvalidCredentials("Thông tin đăng nhập sai")

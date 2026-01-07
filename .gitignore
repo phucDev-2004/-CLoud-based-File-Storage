@@ -3,4 +3,4 @@ fe_cloudBasedFilePrj/
 migrations/
 __pycache__/
 venv/
-!.gitkeep
+*.csv
