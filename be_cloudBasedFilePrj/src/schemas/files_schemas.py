@@ -19,9 +19,10 @@ class UploadInitOut(Schema):
     upload_url: str
 
 class FileOut(Schema):
-    id: UUID
+    id: str
     file_name: str
     file_size: float
     mime_type: str
+    created_at: datetime
     updated_at: datetime
     download_url: Optional[str] = None

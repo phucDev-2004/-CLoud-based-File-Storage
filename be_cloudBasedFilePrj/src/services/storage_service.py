@@ -35,7 +35,6 @@ def generate_presigned_upload_url(storage_key: str, mime_type: str, expiration=3
                 'Bucket': BUCKET_NAME,
                 'Key': storage_key,
                 'ContentType': mime_type, 
-                # 'ACL': 'private' # Tùy chỉnh quyền
             },
             ExpiresIn=expiration
         )

@@ -1,9 +1,10 @@
-from typing import List, Optional
+from typing import List
 from ninja import Router
-from django.shortcuts import get_object_or_404
 
-from ..models import Files, Status
+
 from ..security import AuthBearer
+
+from ..schemas.auth_schemas import MessageResponse
 from ..schemas.files_schemas import (
     UploadInitIn,
     UploadInitOut,
@@ -11,36 +12,21 @@ from ..schemas.files_schemas import (
     RenameIn,
     FileOut
 )
-from ..services.storage_service import (
-    generate_storage_key,
-    generate_presigned_upload_url,
-    generate_presigned_download_url,
-)
+from ..services.storage_service import generate_presigned_download_url
 
-import uuid
+from ..services.files_service import FilesService
 
 router = Router(tags=["Files"])
 
-@router.post("upload/init", auth=AuthBearer(), response=UploadInitOut)
+@router.post("/upload/init", auth=AuthBearer(), response=UploadInitOut)
 def upload_files(request, payload: UploadInitIn):
     account = request.auth
     
-    storage_key = generate_storage_key(account.id, payload.file_name)
-    
-    file = Files.objects.create(
+    file, upload_url = FilesService.init_upload(
         owner=account,
-        file_name=payload.file_name,
-        mime_type=payload.mime_type,
-        file_size=payload.file_size,
-        storage_key=storage_key,
-        status=Status.UPLOADING,
+        data=payload
     )
-
-    upload_url = generate_presigned_upload_url(
-        storage_key,
-        payload.mime_type,
-    )
-
+    
     return {
         "file_id": file.id,
         "upload_url": upload_url,
@@ -48,67 +34,52 @@ def upload_files(request, payload: UploadInitIn):
 
 
 @router.post("/upload-complete",  auth=AuthBearer())
-def upload_complete(request, data: UploadCompleteIn):
+def upload_complete(request, payload: UploadCompleteIn):
     account = request.auth
     
-    file = get_object_or_404(
-        Files,
-        id=data.file_id,
-        owner=account,
-        status=Status.UPLOADING,
-    )
-
-    file.status = Status.SUCCESS
-    file.save(update_fields=["status"])
+    FilesService.upload_complete(owner=account, data=payload)
 
     return {"success": True}
 
 
-@router.patch("/{file_id}/rename",  auth=AuthBearer())
-def rename(request, file_id: str, data: RenameIn):
+@router.patch("/{file_id}/rename",  auth=AuthBearer(), response=FileOut)
+def rename(request, file_id: str, payload: RenameIn):
     account = request.auth
-    file = get_object_or_404(
-        Files,
-        id=file_id,
+    file = FilesService.rename(
         owner=account,
-        is_deleted=False,
+        file_id=file_id,
+        data=payload
     )
 
-    file.file_name = data.file_name
-    file.save(update_fields=["file_name"])
-
-    return {"success": True}
+    return file
 
 
 @router.get("/list",auth=AuthBearer(), response=List[FileOut])
 def list_files(request):
     account = request.auth
-    files = Files.objects.filter(
-        owner=account, 
-        status=Status.SUCCESS, 
-        is_deleted=False
-    )
-    
-    results = []
-    for f in files:
-        data = f.__dict__
-        data['id'] = f.id
-        data['download_url'] = generate_presigned_download_url(f.storage_key)
-        results.append(data)
-        
-    return results
 
-@router.delete("/{file_id}",  auth=AuthBearer())
+    files = FilesService.list_files(owner=account)
+        
+    return  [
+        {
+            "id": str(f.id),
+            "file_name": f.file_name,
+            "mime_type": f.mime_type,
+            "file_size": f.file_size,
+            "created_at": f.created_at,
+            "updated_at": f.updated_at,
+            "download_url": generate_presigned_download_url(f.storage_key),
+        }
+        for f in files
+    ]
+
+@router.delete("/{file_id}", auth=AuthBearer(), response=MessageResponse)
 def delete(request, file_id: str):
     account = request.auth
-    file = get_object_or_404(
-        Files,
-        id=file_id,
-        owner=account,
-        is_deleted=False,
-    )
-
-    file.is_deleted = True
-    file.save(update_fields=["is_deleted"])
-
-    return {"success": True}
+    
+    FilesService.soft_delete_file(owner=account, file_id=file_id)
+    
+    return {
+        "success": True,
+        "message": "Đăng ký thành công"
+    }
