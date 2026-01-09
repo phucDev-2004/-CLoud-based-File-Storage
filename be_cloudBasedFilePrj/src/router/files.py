@@ -5,12 +5,8 @@ from ..security import AuthBearer
 
 from ..schemas.auth_schemas import MessageResponse
 from ..schemas.files_schemas import (
-    UploadInitIn,
-    UploadInitOut,
-    UploadCompleteIn,
-    RenameIn,
-    FileOut,
-    PresignedUrl
+    UploadInitIn, UploadCompleteIn, RenameIn,
+    UploadInitResponse, SingleFileResponse, FileListResponse, PresignedUrlResponse
 )
 from ..services.files_service import FilesService
 
@@ -19,7 +15,7 @@ router = Router(tags=["Files"])
 
 
 
-@router.post("/upload/init", auth=AuthBearer(), response=UploadInitOut)
+@router.post("/upload/init", auth=AuthBearer(), response=UploadInitResponse)
 def upload_files(request, payload: UploadInitIn):
     account = request.auth
     
@@ -29,8 +25,12 @@ def upload_files(request, payload: UploadInitIn):
     )
     
     return {
-        "file_id": file.id,
-        "upload_url": upload_url,
+        "success": True,
+        "message": "Tạo link upload thành công",
+        "data": {
+            "file_id": file.id,
+            "upload_url": upload_url
+        }
     }
 
 
@@ -43,7 +43,7 @@ def upload_complete(request, payload: UploadCompleteIn):
     return {"success": True, "message": "Upload thành công"}
 
 
-@router.patch("/rename/{file_id}",  auth=AuthBearer(), response=FileOut)
+@router.patch("/rename/{file_id}",  auth=AuthBearer(), response=SingleFileResponse)
 def rename(request, file_id: str, payload: RenameIn):
     account = request.auth
     file = FilesService.rename(
@@ -52,65 +52,61 @@ def rename(request, file_id: str, payload: RenameIn):
         data=payload
     )
 
-    return file
+    return {
+        "success": True,
+        "message": "Đổi tên thành công",
+        "data": file
+    }
 
 
-@router.get("/list",auth=AuthBearer(), response=List[FileOut])
+@router.get("/list",auth=AuthBearer(), response=FileListResponse)
 def list_files(request):
     account = request.auth
 
     files = FilesService.list_files(owner=account)
         
-    return  [
-        {
-            "id": str(f.id),
-            "file_name": f.file_name,
-            "mime_type": f.mime_type,
-            "file_size": f.file_size,
-            "created_at": f.created_at,
-            "updated_at": f.updated_at
-        }
-        for f in files
-    ]
+    return {
+        "success": True,
+        "data": files
+    }
 
-@router.get("/view/{file_id}", auth=AuthBearer(), response=PresignedUrl)
+@router.get("/view/{file_id}", auth=AuthBearer(), response=PresignedUrlResponse)
 def download(request, file_id: str):
     account = request.auth
     
     url = FilesService.view_file(owner=account, file_id=file_id)
     
     return {
-        "presigned_url": url
-    } 
+        "success": True,
+        "data": {
+            "presigned_url": url
+        }
+    }
 
-@router.get("/download/{file_id}", auth=AuthBearer(), response=PresignedUrl)
+@router.get("/download/{file_id}", auth=AuthBearer(), response=PresignedUrlResponse)
 def download(request, file_id: str):
     account = request.auth
     
     url = FilesService.download_file(owner=account, file_id=file_id)
     
     return {
-        "presigned_url": url
-    } 
+        "success": True,
+        "data": {
+            "presigned_url": url
+        }
+    }
 
 
-@router.get("/trash", auth=AuthBearer(), response=List[FileOut])
+@router.get("/trash", auth=AuthBearer(), response=FileListResponse)
 def list_trash(request):
     account = request.auth
     
     files = FilesService.list_trashed_files(owner=account)
     
-    return  [
-        {
-            "id": str(f.id),
-            "file_name": f.file_name,
-            "mime_type": f.mime_type,
-            "file_size": f.file_size,
-            "created_at": f.created_at,
-            "updated_at": f.updated_at,
-        }
-        for f in files
-    ]
+    return  {
+        "success": True,
+        "data": files
+    }
 
 @router.delete("/{file_id}", auth=AuthBearer(), response=MessageResponse)
 def soft_delete_file(request, file_id: str):
@@ -131,7 +127,7 @@ def restore_file(request, file_id: str):
 
     return {
         "success": True,
-        "message": "Đã Khôi phục thành công"
+        "message": "Đã khôi phục thành công"
     }
 
 

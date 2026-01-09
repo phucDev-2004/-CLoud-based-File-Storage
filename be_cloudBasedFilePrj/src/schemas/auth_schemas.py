@@ -32,5 +32,5 @@ class LoginResponse(Schema):
     tokens: TokenResponse
 
 class MessageResponse(Schema):
-    success: bool
-    message: str
+    success: bool = True
+    message: str = "Thành công"

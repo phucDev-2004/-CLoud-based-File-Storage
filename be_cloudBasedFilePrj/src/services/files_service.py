@@ -15,6 +15,7 @@ from ..services.storage_service import (
     delete_object_from_storage
 )
 from ..models import Files, Status, Account
+from ..exceptions import  BaseAppException, ResourceNotFound
 
 class FilesService():
     @staticmethod
@@ -40,31 +41,36 @@ class FilesService():
     
     @staticmethod
     def upload_complete(*, owner: Account, data: UploadCompleteIn) -> Files:
-        with transaction.atomic():
-            file = Files.objects.select_for_update().get(
-                id=data.file_id,
-                owner=owner,
-                status=Status.UPLOADING,
-            )
+        try:
+            with transaction.atomic():
+                file = Files.objects.select_for_update().get(
+                    id=data.file_id,
+                    owner=owner,
+                    status=Status.UPLOADING
+                )
 
-            file.status = Status.SUCCESS
-            file.save(update_fields=["status"])
+                file.status = Status.SUCCESS
+                file.save(update_fields=["status"])
+                return file
 
-        return file
-
+        except Files.DoesNotExist:
+            raise ResourceNotFound("File không tồn tại hoặc trạng thái không hợp lệ")
+        
     @staticmethod
     def rename(*, owner, file_id: str, data: RenameIn) -> Files:
-        file = get_object_or_404(
-            Files,
-            id=file_id,
-            owner=owner,
-            is_deleted=False,
-        )
+        try:
+            file = Files.objects.get(
+                id=file_id,
+                owner=owner,
+                is_deleted=False,
+            )
+            
+            file.file_name = data.new_name
+            file.save(update_fields=["file_name"])
+            return file
 
-        file.file_name = data.new_name
-        file.save(update_fields=["file_name"])
-
-        return file
+        except Files.DoesNotExist:
+            raise ResourceNotFound("File không tồn tại")
     
     @staticmethod
     def list_files(*, owner: Account) -> List[Files]:
@@ -78,42 +84,49 @@ class FilesService():
     
     @staticmethod
     def view_file(*, owner: Account, file_id: str) -> str:
-        file = get_object_or_404(
-            Files,
-            owner=owner,
-            id=file_id,
-            is_deleted=False,
-            status=Status.SUCCESS,
-        )
-       
-        return generate_presigned_view_url(file.storage_key)
+        try:
+            file = Files.objects.get(
+                owner=owner,
+                id=file_id,
+                is_deleted=False,
+                status=Status.SUCCESS,
+            )
+            return generate_presigned_view_url(file.storage_key)
+
+        except Files.DoesNotExist:
+            raise ResourceNotFound("File không tồn tại")
 
     
     @staticmethod
     def download_file(*, owner: Account, file_id: str) -> str:
-        file = get_object_or_404(
-            Files,
-            owner=owner,
-            id=file_id,
-            is_deleted=False,
-            status=Status.SUCCESS,
-        )
-       
-        return generate_presigned_download_url(file.storage_key, file.file_name)
+        try:
+            file = Files.objects.get(
+                owner=owner,
+                id=file_id,
+                is_deleted=False,
+                status=Status.SUCCESS,
+            )
+            return generate_presigned_download_url(file.storage_key, file.file_name)
+
+        except Files.DoesNotExist:
+            raise ResourceNotFound("File không tồn tại")
 
     @staticmethod
     def soft_delete_file(*, owner: Account, file_id: str) -> Files:
-        with transaction.atomic():
-            file = Files.objects.select_for_update().get(
-                id=file_id,
-                owner=owner,
-                is_deleted=False,
-            )
+        try:
+            with transaction.atomic():
+                file = Files.objects.select_for_update().get(
+                    id=file_id,
+                    owner=owner,
+                    is_deleted=False,
+                )
 
-            file.is_deleted = True
-            file.save(update_fields=["is_deleted"])
+                file.is_deleted = True
+                file.save(update_fields=["is_deleted"])
+                return file
 
-        return file
+        except Files.DoesNotExist:
+            raise ResourceNotFound("File không tồn tại hoặc đã bị xóa")
     
     
     @staticmethod
@@ -122,34 +135,40 @@ class FilesService():
             owner=owner,
             status=Status.SUCCESS,
             is_deleted=True
-        )
+        ).order_by('-updated_at')
         return files
 
     @staticmethod
     def restore_temporary_file(*, owner: Account, file_id: str) -> Files:
-        with transaction.atomic():
-            file = Files.objects.select_for_update().get(
-                owner = owner,
-                id = file_id,
-                is_deleted=True,
-                status=Status.SUCCESS
-            )
+        try:
+            with transaction.atomic():
+                file = Files.objects.select_for_update().get(
+                    owner=owner,
+                    id=file_id,
+                    is_deleted=True,
+                    status=Status.SUCCESS
+                )
 
-            file.is_deleted = False
-            file.save(update_fields=["is_deleted"])
-        
-        return file
+                file.is_deleted = False
+                file.save(update_fields=["is_deleted"])
+                return file
+
+        except Files.DoesNotExist:
+            raise ResourceNotFound("File không tìm thấy trong thùng rác")
 
     @staticmethod
     def hard_delete_file(*, owner: Account, file_id: str) -> None:
-        with transaction.atomic():
-            file = Files.objects.select_for_update().get(
-                id=file_id,
-                owner=owner,
-                is_deleted=True,
-            )
-
-            delete_object_from_storage(file.storage_key)
-
-            file.delete()
+        try:
+            with transaction.atomic():
+                file = Files.objects.select_for_update().get(
+                    id=file_id,
+                    owner=owner,
+                    is_deleted=True,
+                )
+                delete_object_from_storage(file.storage_key)
+                file.delete()
+        except Files.DoesNotExist:
+            raise ResourceNotFound("File không tồn tại trong thùng rác")
+        except Exception as e:
+            raise BaseAppException(f"Lỗi khi xóa file: {str(e)}", code=500)
 
