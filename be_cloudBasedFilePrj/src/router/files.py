@@ -71,7 +71,7 @@ def list_files(request):
     }
 
 @router.get("/view/{file_id}", auth=AuthBearer(), response=PresignedUrlResponse)
-def download(request, file_id: str):
+def view(request, file_id: str):
     account = request.auth
     
     url = FilesService.view_file(owner=account, file_id=file_id)

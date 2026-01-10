@@ -29,6 +29,7 @@ class FileOut(Schema):
     file_name: str
     file_size: float
     mime_type: str
+    extension: str
     created_at: datetime
     updated_at: datetime
 

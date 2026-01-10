@@ -17,15 +17,27 @@ from ..services.storage_service import (
 from ..models import Files, Status, Account
 from ..exceptions import  BaseAppException, ResourceNotFound
 
+import os
+
+def extract_extension(file_name: str) -> str:
+    return os.path.splitext(file_name)[1].lower()
+
+def build_download_filename(file: Files) -> str:
+    name, _ = os.path.splitext(file.file_name)
+    return f"{name}{file.extension}"
+
 class FilesService():
     @staticmethod
     def init_upload(*, owner: Account, data: UploadInitIn) -> tuple[Files, str]:
+
+        extension = extract_extension(data.file_name)
 
         storage_key = generate_storage_key(owner.id, data.file_name)
 
         file = Files.objects.create(
             owner=owner,
             file_name=data.file_name,
+            extension=extension,
             mime_type=data.mime_type,
             file_size=data.file_size,
             storage_key=storage_key,
@@ -106,7 +118,10 @@ class FilesService():
                 is_deleted=False,
                 status=Status.SUCCESS,
             )
-            return generate_presigned_download_url(file.storage_key, file.file_name)
+
+            download_name = build_download_filename(file)
+            
+            return generate_presigned_download_url(file.storage_key, download_name)
 
         except Files.DoesNotExist:
             raise ResourceNotFound("File không tồn tại")
