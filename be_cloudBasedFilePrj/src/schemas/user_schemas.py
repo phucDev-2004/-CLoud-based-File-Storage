@@ -8,6 +8,7 @@ from ..schemas.files_schemas import MessageResponse
 class ProfileOut(Schema):
     id: UUID
     email: str
+    user_name: str
     full_name: Optional[str] = None
     avatar_url: Optional[str] = None
     used_storage: int
