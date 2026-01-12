@@ -1,5 +1,5 @@
-from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.db.models import F
 from typing import List
 
 from ..schemas.files_schemas import (
@@ -30,6 +30,14 @@ class FilesService():
     @staticmethod
     def init_upload(*, owner: Account, data: UploadInitIn) -> tuple[Files, str]:
 
+        if owner.used_storage + data.file_size > owner.storage_limit:
+            limit_gb = owner.storage_limit / (1024**3)
+            current_gb = round(owner.used_storage / (1024**3), 2)
+            raise BaseAppException(
+                message=f"Dung lượng đầy! Đang dùng {current_gb}GB / {limit_gb}GB.",
+                code=400
+            )
+
         extension = extract_extension(data.file_name)
 
         storage_key = generate_storage_key(owner.id, data.file_name)
@@ -59,6 +67,10 @@ class FilesService():
                     id=data.file_id,
                     owner=owner,
                     status=Status.UPLOADING
+                )
+
+                Account.objects.filter(pk=owner.pk).update(
+                    used_storage=F('used_storage') + file.file_size
                 )
 
                 file.status = Status.SUCCESS
@@ -180,8 +192,17 @@ class FilesService():
                     owner=owner,
                     is_deleted=True,
                 )
+
+                file_size_to_deduct = file.file_size
+                is_file_success = (file.status == Status.SUCCESS)
+
                 delete_object_from_storage(file.storage_key)
                 file.delete()
+
+                if is_file_success:
+                    Account.objects.filter(pk=owner.pk).update(
+                        used_storage=F('used_storage') - file_size_to_deduct
+                    )
         except Files.DoesNotExist:
             raise ResourceNotFound("File không tồn tại trong thùng rác")
         except Exception as e:

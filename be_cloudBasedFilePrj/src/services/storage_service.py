@@ -73,3 +73,20 @@ def generate_presigned_download_url(storage_key: str, file_name: str,expires=300
 
 def delete_object_from_storage(storage_key: str) -> None:
     s3_client.delete_object(Bucket=BUCKET_NAME, Key=storage_key)
+
+
+def save_file_to_storage(file_obj, storage_key: str, content_type: str):
+    """
+    Upload file trực tiếp từ backend lên S3
+    file_obj: là đối tượng file nhận
+    """
+    try:
+        s3_client.upload_fileobj(
+            file_obj.file,
+            settings.AWS_STORAGE_BUCKET_NAME,
+            storage_key,
+            ExtraArgs={'ContentType': content_type}
+        )
+    except Exception as e:
+        print(f"S3 Upload Error: {e}")
+        raise e

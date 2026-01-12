@@ -10,6 +10,8 @@ class Account(TimeStampedModel):
     password = models.TextField(null=True, blank=True,)
     full_name = models.CharField(max_length=50, null=True, blank=True)
     avatar_url = models.TextField()
+    used_storage = models.BigIntegerField(default=0, help_text="Tổng dung lượng file (bytes) đang sử dụng")
+    storage_limit = models.BigIntegerField(default=5 * 1024 * 1024 * 1024)
     is_active = models.BooleanField(default=True)
     
     class Meta(TimeStampedModel.Meta, UnmanagedMeta):
