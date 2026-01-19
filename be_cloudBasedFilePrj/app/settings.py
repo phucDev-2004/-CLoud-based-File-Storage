@@ -29,18 +29,19 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+# Tự động lấy host từ .env hoặc mặc định localhost
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # Application definition
 
 INSTALLED_APPS = [
-    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "corsheaders",
     "src"
 ]
 
@@ -147,11 +148,15 @@ REFRESH_EXP_DAYS: Final[int] = int(os.getenv('REFRESH_EXPIRE_DAYS', '7'))
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", 
     "http://127.0.0.1:3000",
+    "http://cloud.vpone.site",
+    "https://cloud.vpone.site",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://cloud.vpone.site",
+    "https://cloud.vpone.site",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
