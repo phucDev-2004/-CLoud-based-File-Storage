@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+
+/* CSS For FILEPOND */
+.filepond--root {
+  max-height: 200px;
+}
+
+.filepond--panel-root {
+  background: transparent;
+}
+
+.filepond--drop-label {
+  color: #67e8f9;
+}
+
+.filepond--label-action {
+  color: #22d3ee;
+}
+
+.filepond--item-panel {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* END CSS For FILEPOND */
